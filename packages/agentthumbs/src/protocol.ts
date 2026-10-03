@@ -20,6 +20,8 @@ export interface WireDevice {
   platform: "android" | "ios";
   driver: string;
   screen: { width: number; height: number };
+  /** adb serial or iPhone UDID, when known. */
+  serial?: string;
 }
 
 export interface WireElement {

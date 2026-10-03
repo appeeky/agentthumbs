@@ -196,6 +196,7 @@ export class AdbProvider implements DriverProvider {
           platform: "android",
           driver: "adb",
           screen,
+          serial: line.serial,
         }),
       );
     }

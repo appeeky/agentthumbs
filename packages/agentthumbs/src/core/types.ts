@@ -46,6 +46,8 @@ export interface DeviceInfo {
   driver: string;
   /** Native screen size in pixels. */
   screen: { width: number; height: number };
+  /** The hardware id when the driver knows it: the adb serial, or the iPhone's UDID. */
+  serial?: string;
 }
 
 export interface AppInfo {

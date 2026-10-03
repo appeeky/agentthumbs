@@ -424,6 +424,7 @@ export class WdaProvider implements DriverProvider {
           width: Math.round(screen.screenSize.width * scale),
           height: Math.round(screen.screenSize.height * scale),
         },
+        ...((managed?.udid ?? this.udid) ? { serial: managed?.udid ?? this.udid } : {}),
       },
       screen.screenSize,
       scale,

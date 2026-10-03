@@ -69,9 +69,9 @@ describe("WdaProvider auto-start", () => {
       { udid: "A", port: 8100 },
       { udid: "B", port: 8101 },
     ]);
-    expect(drivers.map((d) => [d.info.id, d.info.name])).toEqual([
-      ["wda:127.0.0.1:8100", "Alpha"],
-      ["wda:127.0.0.1:8101", "Bravo"],
+    expect(drivers.map((d) => [d.info.id, d.info.name, d.info.serial])).toEqual([
+      ["wda:127.0.0.1:8100", "Alpha", "A"],
+      ["wda:127.0.0.1:8101", "Bravo", "B"],
     ]);
   });
 
