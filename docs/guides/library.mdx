@@ -1,0 +1,115 @@
+---
+title: Use it from code
+description: Drive a phone from TypeScript, with your own approver and policy.
+---
+
+```bash
+npm install @appeeky/agentthumbs
+```
+
+`createAgentThumbs` returns a runtime wired with every driver available on
+the machine and a JSON Lines action log in `~/.agentthumbs/logs`.
+
+```ts
+import { createAgentThumbs } from "@appeeky/agentthumbs";
+
+const thumbs = createAgentThumbs({
+  // Decide per request. Here every publish-like tap is refused.
+  approver: async (request) => false,
+});
+
+const phone = await thumbs.device(); // the only connected phone; pass an id when there are several
+const { elements } = await phone.observe();
+
+const settings = elements.find((e) => e.label === "Settings");
+if (settings) await phone.tap({ element: settings.id });
+
+await phone.scroll("down");
+await phone.key("home");
+```
+
+Each action returns `{ action, observation }`. The observation has the
+annotated image (`observation.image.data`, a JPEG buffer) and the numbered
+elements, so the next action can use them directly:
+
+```ts
+const result = await phone.openApp("com.android.settings");
+const search = result.observation!.elements.find((e) => /search/i.test(e.label));
+```
+
+## Ask a human
+
+The approver gets the device, the action, the label that matched and an
+annotated screenshot. Return `true` to let the action through.
+
+```ts
+import { createAgentThumbs, ttyApprover } from "@appeeky/agentthumbs";
+
+const thumbs = createAgentThumbs({ approver: ttyApprover() }); // asks in the terminal
+```
+
+`macDialogApprover()` shows a native dialog instead. In a server, send the
+request to your user however you like (push, chat, a dashboard) and resolve
+when they answer.
+
+## Change the policy
+
+```ts
+import { createAgentThumbs, DEFAULT_APPROVAL_WORDS } from "@appeeky/agentthumbs";
+
+const thumbs = createAgentThumbs({
+  approver,
+  policy: {
+    approvalWords: [...DEFAULT_APPROVAL_WORDS, "confirm"],
+    approveUnlabeledTaps: true,
+    maxActionsPerMinute: 10,
+  },
+});
+```
+
+See [PolicyConfig](/reference/api#policyconfig) for every field.
+
+## Pick drivers yourself
+
+`createAgentThumbs` is a convenience. Build an `AgentThumbs` directly to choose
+providers, rendering and logging:
+
+```ts
+import { AdbProvider, AgentThumbs, WdaProvider } from "@appeeky/agentthumbs";
+
+const thumbs = new AgentThumbs({
+  providers: [new AdbProvider(), new WdaProvider({ autoStart: true })],
+  render: { maxEdge: 1024 },
+  onAction: (entry) => console.log(entry),
+});
+```
+
+## Live view
+
+For a person watching or steering the phone, such as a mirror in a desktop
+app, use the calls that skip the agent's machinery:
+
+| Method | What it does |
+| --- | --- |
+| `frame(maxEdge?)` | A cheap screenshot without element detection, for a live mirror |
+| `tapNative(point)` | A tap in native device pixels, without element resolution or approval |
+| `swipeNative(from, to, durationMs?)` | A swipe in native device pixels |
+
+These bypass the approval gate because the person is the one acting. Never
+expose them to an agent. They still go through the device's queue and rate
+limits, so a person and an agent never act at the same instant.
+
+## MCP tools in your own server
+
+To add the phone tools to an MCP server you already run, use
+`registerPhoneTools` with a `LocalPhoneService`:
+
+```ts
+import { createAgentThumbs, LocalPhoneService, registerPhoneTools } from "@appeeky/agentthumbs";
+
+registerPhoneTools(server, new LocalPhoneService(createAgentThumbs({ approver })), {
+  prefix: "phone_",
+});
+```
+
+For phones on another computer, see [Remote phones](/guides/remote#embedding).

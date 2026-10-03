@@ -1,0 +1,71 @@
+{
+  "name": "@appeeky/agentthumbs",
+  "version": "0.2.1",
+  "description": "Give your AI agent a real phone: MCP server, CLI and TypeScript library for Android phones and iPhones.",
+  "license": "FSL-1.1-MIT",
+  "author": "Appeeky (https://appeeky.com)",
+  "homepage": "https://github.com/appeeky/agentthumbs#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/appeeky/agentthumbs.git",
+    "directory": "packages/agentthumbs"
+  },
+  "bugs": {
+    "url": "https://github.com/appeeky/agentthumbs/issues"
+  },
+  "type": "module",
+  "bin": {
+    "agentthumbs": "dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./remote": {
+      "types": "./dist/remote.d.ts",
+      "import": "./dist/remote.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "assets",
+    "native",
+    "swift",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "agent",
+    "android",
+    "ios",
+    "adb",
+    "automation",
+    "phone",
+    "iphone-mirroring",
+    "webdriveragent"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "sharp": "^0.34.5",
+    "ws": "^8.18.3",
+    "zod": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:helper": "mkdir -p native && swiftc -O -swift-version 5 -target arm64-apple-macos14.0 -o native/agentthumbs-mirroring-arm64 swift/main.swift && swiftc -O -swift-version 5 -target x86_64-apple-macos14.0 -o native/agentthumbs-mirroring-x86_64 swift/main.swift && lipo -create -output native/agentthumbs-mirroring native/agentthumbs-mirroring-arm64 native/agentthumbs-mirroring-x86_64 && rm native/agentthumbs-mirroring-arm64 native/agentthumbs-mirroring-x86_64",
+    "prepack": "node ../../scripts/prepack.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

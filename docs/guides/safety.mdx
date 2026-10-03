@@ -1,0 +1,73 @@
+---
+title: Safety
+description: Approvals before publishing, rate limits and the action log.
+---
+
+An agent with your phone can do anything you can. agentthumbs adds guardrails
+that live in the runtime, so they hold no matter what the model decides.
+
+## Approval before publishing
+
+Before a tap or a long press, the runtime looks up the label of the target:
+the element by id, or the element under an x/y point. A label that contains
+an approval word goes to the approver, and the action waits for a human. The
+approver also receives the latest annotated screenshot to show them.
+
+The default words are post, share, send, publish, submit, tweet, buy, pay,
+purchase, checkout, place order, subscribe and delete. Add the words your
+phones show with [`approvalWords`](/reference/api#policyconfig).
+
+Matching ignores case and accents and needs whole words, so "POST" and "Post"
+match while "Postcode" does not.
+
+Who gets asked depends on where agentthumbs runs:
+
+| Where | Approval modes | Default |
+| --- | --- | --- |
+| `agentthumbs mcp` | `auto`, `elicit`, `dialog`, `off` | `auto`: MCP elicitation when the client supports it, otherwise a macOS dialog |
+| `agentthumbs serve` | `relay`, `dialog`, `off` | `relay`: the relay asks the human behind the request |
+| CLI commands | a terminal prompt, or a macOS dialog without a terminal | `--yes` skips it |
+| TypeScript | your `approver` function | Without one, publish-like taps are refused |
+
+When nobody can be asked, the tap fails with `APPROVAL_UNAVAILABLE`. When the
+human says no, it fails with `APPROVAL_DENIED`, and the agent is told to stop
+and ask instead of finding another way to do the same thing.
+
+<Warning>
+Turn approvals off (`--approval off`) only for phones and accounts you are
+comfortable handing over completely.
+</Warning>
+
+### Known gaps
+
+- A publish triggered by the enter key is not gated.
+- A tap by x/y on a screen without elements has no label to check. Set
+  `approveUnlabeledTaps: true` in the [policy](/reference/api#policyconfig)
+  to ask before those too, at the cost of more prompts.
+
+## Rate limits
+
+Each device allows 30 actions a minute and 600 an hour by default, counted
+in sliding windows. Past either limit an action fails with `RATE_LIMITED`.
+Change them with `maxActionsPerMinute` and `maxActionsPerHour`.
+
+## Action log
+
+Every action and approval decision is appended to
+`~/.agentthumbs/logs/<date>.jsonl` by the CLI and the MCP server. In
+TypeScript, pass `onAction` to send entries anywhere.
+
+```json
+{"at":"2026-10-02T09:14:01.870Z","device":"adb:emulator-5554","action":"approval","detail":{"action":"tap","label":"Post","approved":true}}
+{"at":"2026-10-02T09:14:03.120Z","device":"adb:emulator-5554","action":"tap","detail":{"target":{"element":12},"label":"Post"}}
+```
+
+## Using it responsibly
+
+Use agentthumbs on your own devices and accounts, and follow each app's
+terms. It is not built for running fleets of fake accounts, and it does not
+try to hide that a phone is being automated.
+
+The agent instructions agentthumbs sends to every MCP client also tell the
+model never to type passwords or payment details the user did not give it
+for the task.

@@ -1,0 +1,31 @@
+{
+  "name": "agentthumbs-monorepo",
+  "private": true,
+  "license": "FSL-1.1-MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/agentthumbs"
+  ],
+  "scripts": {
+    "build": "tsc -b packages/agentthumbs",
+    "clean": "tsc -b --clean packages/agentthumbs",
+    "typecheck": "tsc -b packages/agentthumbs",
+    "test": "vitest run",
+    "e2e": "node scripts/e2e-mcp.mjs",
+    "ios:wda": "bash scripts/ios-wda.sh",
+    "e2e:relay": "node scripts/e2e-relay.mjs",
+    "docs": "cd docs && npx -y mint@4.2.981 dev",
+    "docs:check": "cd docs && npx -y mint@4.2.981 validate && npx -y mint@4.2.981 broken-links",
+    "pack:check": "npm run build && npm pack --workspaces --dry-run",
+    "release:dry": "node scripts/release.mjs --dry-run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7",
+    "@types/ws": "^8.18.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

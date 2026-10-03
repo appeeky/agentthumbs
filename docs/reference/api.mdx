@@ -1,0 +1,206 @@
+---
+title: TypeScript API
+description: createAgentThumbs, AgentThumbs, DeviceSession and the policy.
+---
+
+```ts
+import { createAgentThumbs } from "@appeeky/agentthumbs";      // everything, with drivers
+import { RelayHub } from "@appeeky/agentthumbs/remote";         // servers: no drivers or native modules
+```
+
+## createAgentThumbs
+
+```ts
+function createAgentThumbs(options?: {
+  approver?: Approver;
+  policy?: Partial<PolicyConfig>;
+}): AgentThumbs;
+```
+
+An `AgentThumbs` with the adb, WebDriverAgent and iPhone Mirroring providers,
+Apple Vision OCR when it is available, and an action log in
+`~/.agentthumbs/logs/<date>.jsonl` (`AGENTTHUMBS_HOME` moves it).
+
+## AgentThumbs
+
+```ts
+class AgentThumbs {
+  constructor(options: AgentThumbsOptions);
+  /** Discovers devices on every provider. Sessions for devices that stay connected are kept. */
+  devices(): Promise<DeviceInfo[]>;
+  /** Setup problems reported by providers, for when a device is missing. */
+  diagnose(): Promise<string[]>;
+  /** The session for a device. Without an id, the only connected device. */
+  device(id?: string): Promise<DeviceSession>;
+}
+
+interface AgentThumbsOptions {
+  providers: DriverProvider[];
+  /** Used for drivers without a UI tree, for example OCR. */
+  elementSource?: ElementSource;
+  policy?: Partial<PolicyConfig>;
+  /** Asks a human. Without one, actions that need approval are refused. */
+  approver?: Approver;
+  /** Default { maxEdge: 1280, format: "jpeg", marks: true } */
+  render?: Partial<RenderOptions>;
+  /** Default { initialDelayMs: 250, timeoutMs: 3000, threshold: 1.5 } */
+  settle?: Partial<SettleOptions>;
+  onAction?: (entry: ActionLogEntry) => void;
+}
+```
+
+`device()` throws when no phone is connected, or when several are and no id
+was passed.
+
+## DeviceSession
+
+One per phone. Actions run one at a time, in order.
+
+```ts
+class DeviceSession {
+  readonly info: DeviceInfo;
+  readonly capabilities: DriverCapabilities;
+
+  observe(): Promise<Observation>;
+  tap(target: Target, options?: ActionOptions): Promise<ActionResult>;
+  longPress(target: Target, durationMs?: number, options?: ActionOptions): Promise<ActionResult>; // 800
+  swipe(from: Target, to: Target, durationMs?: number, options?: ActionOptions): Promise<ActionResult>; // 300
+  scroll(direction: Direction, amount?: number, options?: ActionOptions): Promise<ActionResult>; // 0.5
+  type(text: string, options?: ActionOptions): Promise<ActionResult>;
+  key(key: Key, options?: ActionOptions): Promise<ActionResult>;
+  openApp(appId: string, options?: ActionOptions): Promise<ActionResult>;
+  listApps(): Promise<AppInfo[]>;
+  /** Returns the path on the phone. */
+  pushMedia(localPath: string): Promise<string>;
+
+  // For a person steering the phone, never for an agent
+  frame(maxEdge?: number): Promise<RenderedImage>;
+  tapNative(point: Point, options?: ActionOptions): Promise<ActionResult>;
+  swipeNative(from: Point, to: Point, durationMs?: number, options?: ActionOptions): Promise<ActionResult>;
+}
+
+type Target = { element: number } | { x: number; y: number };
+type Direction = "up" | "down" | "left" | "right";
+type Key = "home" | "back" | "enter" | "delete" | "app_switch" | "volume_up" | "volume_down" | "lock";
+
+interface ActionOptions {
+  /** Return a fresh observation once the screen settles. Defaults to true. */
+  observe?: boolean;
+}
+
+interface ActionResult {
+  action: string;
+  observation?: Observation;
+}
+```
+
+`x` and `y` in a `Target` are pixels in the latest observation's image.
+`Point` is in native device pixels.
+
+## Observation
+
+```ts
+interface Observation {
+  device: DeviceInfo;
+  image: RenderedImage;           // { data: Buffer, mimeType, width, height, scale }
+  elements: ObservedElement[];
+  takenAt: string;                // ISO time
+}
+
+interface ObservedElement {
+  id: number;
+  label: string;
+  role?: string;
+  clickable?: boolean;
+  /** Center in observation image pixels. */
+  x: number;
+  y: number;
+}
+```
+
+`describeObservation(observation)` returns the text the MCP server sends to
+the model.
+
+## PolicyConfig
+
+```ts
+interface PolicyConfig {
+  /** Ask a human before tapping anything that matches approvalWords. Default true. */
+  requireApproval: boolean;
+  /** Default: common publish words, see Safety. */
+  approvalWords: readonly string[];
+  /** Also ask before coordinate taps that do not land on any known element. Default false. */
+  approveUnlabeledTaps: boolean;
+  maxActionsPerMinute: number;  // 30
+  maxActionsPerHour: number;    // 600
+}
+```
+
+`DEFAULT_POLICY` and `DEFAULT_APPROVAL_WORDS` are exported, so you can extend
+the defaults instead of replacing them:
+
+```ts
+policy: { approvalWords: [...DEFAULT_APPROVAL_WORDS, "confirm"] }
+```
+
+## Approver
+
+```ts
+type Approver = (request: ApprovalRequest) => Promise<boolean>;
+
+interface ApprovalRequest {
+  device: DeviceInfo;
+  action: string;           // "tap" or "long_press"
+  label: string | undefined;
+  reason: string;
+  /** Annotated screenshot to show the human. */
+  screenshot?: Buffer;
+}
+```
+
+Ready-made approvers: `ttyApprover()`, `macDialogApprover(timeoutSeconds = 120)`,
+and `elicitationApprover(mcpServer)`.
+
+## DeviceInfo
+
+```ts
+interface DeviceInfo {
+  /** Stable id, unique across drivers, for example "adb:emulator-5554". */
+  id: string;
+  name: string;
+  platform: "android" | "ios";
+  driver: string;
+  /** Native screen size in pixels. */
+  screen: { width: number; height: number };
+}
+```
+
+## DriverCapabilities
+
+```ts
+interface DriverCapabilities {
+  uiTree: boolean;
+  listApps: boolean;
+  openApp: boolean;
+  pushMedia: boolean;
+  keys: readonly Key[];
+}
+```
+
+| Driver | `uiTree` | `listApps` | `openApp` | `pushMedia` | Keys |
+| --- | --- | --- | --- | --- | --- |
+| `adb` | yes | yes | yes | yes | all |
+| `wda` | yes | with auto start, or `AGENTTHUMBS_WDA_UDID` | yes | no | `home`, `enter`, `delete`, `lock`, `volume_up`, `volume_down` |
+| `mirroring` | no (OCR) | no | yes, by name | no | `home`, `app_switch`, `enter`, `delete` |
+
+## Providers
+
+| Export | Options |
+| --- | --- |
+| `AdbProvider` | none |
+| `WdaProvider` | `urls`, `udid`, `checkVisibility`, `autoStart` (every ready iPhone, each on its own port from `autoStartPort`), `team`, `autoStartPort`, `onLog`. `stop()` stops the WebDriverAgents it started |
+| `MirroringProvider` | none |
+| `VisionOcrSource` | An `ElementSource` backed by Apple Vision; check `available` first |
+
+`discoverIosDevices()`, `findSigningTeams()` and `pickTeam()` are the pieces
+behind `agentthumbs ios`.

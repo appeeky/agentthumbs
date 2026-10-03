@@ -1,0 +1,169 @@
+---
+title: Device farms
+description: Run many phones on your own servers and let agents anywhere use them.
+---
+
+agentthumbs has no limit on phones. Each one gets its own session and its own
+action queue, so several agents can work on different phones at the same
+time. What limits a farm is hardware: USB ports and power for real phones,
+memory and CPU for emulators.
+
+```text
+Agents (cloud, CI, Claude Code)
+   │  MCP over HTTP, bearer token
+   ▼
+agentthumbs relay ◄──WebSocket── farm-1: agentthumbs serve ── USB hub ── Android phones
+   (any server)    ◄──WebSocket── farm-2: agentthumbs serve ── Docker ── Android emulators
+                   ◄──WebSocket── mac-1:  agentthumbs serve ── USB ── iPhones
+```
+
+Every machine with phones runs a **connector** (`agentthumbs serve`) that
+opens an outbound WebSocket to one **relay**. Agents talk only to the relay.
+The phone machines need no inbound ports, so they can sit behind NAT in an
+office or a rack.
+
+## 1. Run the relay
+
+On any server reachable by your agents:
+
+```bash
+AGENTTHUMBS_RELAY_TOKEN=<long random value> agentthumbs relay --port 8787
+```
+
+Put it behind TLS with any reverse proxy. See [Remote phones](/guides/remote)
+for the details and for embedding the relay in your own server.
+
+## 2. Add phone machines
+
+Install agentthumbs on each machine (`npm install -g @appeeky/agentthumbs`), connect
+its phones, then:
+
+```bash
+AGENTTHUMBS_RELAY_TOKEN=<token> agentthumbs serve \
+  --relay wss://relay.example.com/connect --name farm-1
+```
+
+Give every machine a unique `--name`. Device ids carry it, so agents can tell
+phones apart: `farm-1/adb:R5CT10ABCDE`, `farm-2/adb:emulator-5554`,
+`mac-1/wda:127.0.0.1:8101`.
+
+The connector reports newly connected and disconnected phones to the relay
+every 10 seconds, and reconnects on its own when the relay restarts.
+
+<Note>
+Publish-like taps still need approval. On a farm nobody sits next to the
+phones, so the relay asks the human behind the agent through MCP
+elicitation. If your agents run unattended, decide deliberately whether to
+run `serve --approval off`; see [Safety](/guides/safety).
+</Note>
+
+### Keep it running
+
+Run `serve` as a service so it survives reboots. With systemd:
+
+```ini title="/etc/systemd/system/agentthumbs.service"
+[Unit]
+Description=agentthumbs connector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=/etc/agentthumbs.env
+ExecStart=/usr/bin/env agentthumbs serve --relay wss://relay.example.com/connect --name farm-1
+Restart=always
+RestartSec=5
+User=agentthumbs
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`/etc/agentthumbs.env` holds `AGENTTHUMBS_RELAY_TOKEN=…`, readable only by
+that user. Then `systemctl enable --now agentthumbs`.
+
+## Android phones on USB
+
+adb drives as many phones as the machine can see. On Linux:
+
+1. Install the platform tools and the udev rules that let a normal user open
+   Android devices. On Debian and Ubuntu: `apt install adb android-sdk-platform-tools-common`,
+   then add the service user to the `plugdev` group.
+2. Use a **powered** USB hub. Phones charging from an unpowered hub drop off
+   the bus under load.
+3. On each phone: enable USB debugging, accept the computer's key once, and
+   turn off screen lock or set a long timeout, since an agent cannot unlock a
+   phone with a PIN.
+4. Check: `adb devices` lists every phone as `device`, not `unauthorized`.
+
+Install [ADBKeyBoard](/platforms/android#typing-non-ascii-text) on each phone
+if agents type anything other than ASCII.
+
+## Android emulators
+
+Emulators need hardware virtualization: a Linux host with KVM (`/dev/kvm`),
+not a VM without nested virtualization. Plan on 2 to 4 GB of memory and two
+CPU cores per emulator.
+
+Any emulator that exposes adb works. The community image
+[budtmo/docker-android](https://github.com/budtmo/docker-android) runs the
+Android emulator in Docker and exposes adb on port 5555:
+
+```bash
+docker run -d --name emu-1 --device /dev/kvm \
+  -p 127.0.0.1:5555:5555 \
+  -v emu-1-data:/home/androidusr \
+  budtmo/docker-android:emulator_14.0
+
+# Wait for READY (one to three minutes), then connect adb
+until [ "$(docker exec emu-1 cat device_status)" = "READY" ]; do sleep 5; done
+adb connect localhost:5555
+```
+
+Repeat with other names and host ports (`-p 127.0.0.1:5556:5555`, then
+`adb connect localhost:5556`) for more emulators. The connector on that host
+picks them up like USB phones.
+
+<Warning>
+Bind adb to `127.0.0.1` as above. A bare `-p 5555:5555` publishes it on
+every interface, and adb gives full control of the phone with no password.
+</Warning>
+
+The volume keeps each phone's apps and accounts across restarts; leave it
+out when every run should start from a clean phone. The
+[`emulator-farm` skill](/guides/skills) walks a coding agent through all of
+this, including checking the host for KVM.
+
+Emulators start without accounts or apps. Sign in and install what your
+agents need once, then snapshot the container, or script it with the
+[app-store](/guides/skills) skill.
+
+## Phones on the network
+
+`adb connect host:port` also reaches phones on the local network (Android 11+
+wireless debugging) and hosted Android devices from cloud providers that give
+you an adb endpoint. Once `adb devices` lists them, agentthumbs uses them.
+
+## iPhones
+
+iPhones need a Mac. Each Mac runs [`agentthumbs ios setup`](/platforms/ios-wda#several-iphones),
+which starts WebDriverAgent on every connected iPhone, and `agentthumbs serve`
+next to it. Add Macs to grow the iOS side.
+
+## Running agents in parallel
+
+- Give each agent its own phone. Pass its device id to every tool call, or
+  open one MCP session per agent with the device id in its instructions.
+- Two agents on one phone do not crash anything, since actions queue per
+  phone, but they will undo each other's work.
+- [Rate limits](/guides/safety#rate-limits) apply per phone, so a farm of 20
+  phones allows 20 times the actions of one.
+
+## Checklist
+
+| Check | How |
+| --- | --- |
+| Relay up | `curl https://relay.example.com/mcp` answers 401 without a token |
+| Each machine connected | `serve` logs `Connected to wss://…` |
+| Every phone visible | The `devices` tool through the relay lists them with their machine prefix |
+| Phones stay awake | Screen lock off, or a long timeout |
+| Approvals reach a human | Run one task that taps Post and see the prompt |

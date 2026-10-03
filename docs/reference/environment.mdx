@@ -1,0 +1,27 @@
+---
+title: Environment variables
+description: Every variable agentthumbs reads.
+---
+
+| Variable | Used by | What it does |
+| --- | --- | --- |
+| `AGENTTHUMBS_HOME` | everything | Where logs, CLI state and the WebDriverAgent build live. Default `~/.agentthumbs` |
+| `AGENTTHUMBS_RELAY_TOKEN` | `serve`, `relay` | The shared bearer token, in place of `--token` |
+| `AGENTTHUMBS_RELAY_URL` | `serve` | The relay's WebSocket URL, in place of `--relay` |
+| `PORT` | `relay` | The port, in place of `--port` |
+| `AGENTTHUMBS_IOS_TEAM` | iOS setup | Apple signing team id or name, in place of `--team` |
+| `AGENTTHUMBS_WDA_AUTOSTART` | `mcp`, `serve`, library | `1` builds and starts WebDriverAgent on a connected iPhone when none is reachable |
+| `AGENTTHUMBS_WDA_URLS` | WebDriverAgent | Comma-separated WDA base URLs for WebDriverAgents you start yourself. Default `http://127.0.0.1:8100`. Auto start uses the next free ports after it |
+| `AGENTTHUMBS_WDA_UDID` | WebDriverAgent | With auto start, set up only this iPhone. With a WebDriverAgent you started yourself, lets `list_apps` read installed apps through `devicectl` |
+| `AGENTTHUMBS_WDA_FAST` | WebDriverAgent | `1` skips the visibility check, saving about three seconds per observation at the price of phantom elements |
+| `AGENTTHUMBS_MIRRORING_HELPER` | iPhone Mirroring | Path to a custom build of the Swift helper |
+
+## Files
+
+| Path | |
+| --- | --- |
+| `~/.agentthumbs/logs/<date>.jsonl` | The [action log](/guides/safety#action-log) |
+| `~/.agentthumbs/last.jpg` | The CLI's latest screenshot |
+| `~/.agentthumbs/state/` | The CLI's latest observation per device, so element ids work across commands |
+| `~/.agentthumbs/WebDriverAgent` | The WebDriverAgent source |
+| `~/.agentthumbs/wda-build/<udid>` | The WebDriverAgent build for each iPhone. Delete it to rebuild and re-sign |

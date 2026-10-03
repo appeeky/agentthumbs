@@ -1,0 +1,85 @@
+---
+title: MCP tools
+description: Every tool the agentthumbs MCP server exposes, with its arguments.
+---
+
+`agentthumbs mcp` serves these tools over stdio. A relay serves the same
+tools over HTTP at `/mcp`, and `registerPhoneTools` adds them to your own
+server, optionally with a name prefix such as `phone_`.
+
+Every tool that takes `device` accepts a device id from `devices`. Leave it
+out when exactly one phone is connected.
+
+## devices
+
+Lists connected phones with their ids, platform, driver and screen size. When
+none is connected, it returns the setup problems each driver found instead.
+
+```json
+[{ "id": "adb:emulator-5554", "name": "sdk_gphone64_arm64", "platform": "android", "driver": "adb", "screen": { "width": 1080, "height": 2400 } }]
+```
+
+## observe
+
+A screenshot with numbered boxes over tappable elements, plus the element
+list as text.
+
+| Argument | Type | |
+| --- | --- | --- |
+| `device` | string | Optional |
+
+```text
+Pixel 8 (adb:3A1B2C), screenshot 576x1280.
+Tap by element id, or by x,y in screenshot pixels. Numbered boxes on the image match these ids:
+[1] "Search settings" (clickable) at 288,151
+[2] "Network & internet" (clickable) at 288,322
+[3] "Connected devices" (clickable) at 288,410
+```
+
+## Actions
+
+Every action takes an optional `observe` flag, `true` by default, and returns
+a fresh observation once the screen settles. Pass `observe: false` to get
+only `<action>: done`.
+
+A **target** is `{ element }`, an id from the latest observation, or `{ x, y }`
+in the latest screenshot's pixels.
+
+| Tool | Arguments | Notes |
+| --- | --- | --- |
+| `tap` | `element`, or `x` and `y` | Publish-like labels need [approval](/guides/safety) |
+| `long_press` | `element`, or `x` and `y`; `duration_ms` (100–10000, default 800) | Gated like `tap` |
+| `swipe` | `from` and `to`, each a target; `duration_ms` (50–5000, default 300) | For plain scrolling, use `scroll` |
+| `scroll` | `direction`: `up`, `down`, `left`, `right`; `amount`: 0.1–1 of the screen, default 0.5 | `down` reveals content below |
+| `type` | `text` | Types into the focused field. Tap the field first. Newlines press enter |
+| `key` | `key`: `home`, `back`, `enter`, `delete`, `app_switch`, `volume_up`, `volume_down`, `lock` | Which keys work depends on the [driver](/reference/api#drivercapabilities) |
+| `open_app` | `app_id` | A package name on Android, a bundle id over WebDriverAgent, the Home Screen name through iPhone Mirroring |
+
+## list_apps
+
+Lists installed apps as `{ id, name }`. Not available through iPhone
+Mirroring.
+
+## push_media
+
+Copies an image or video into the phone's gallery so an app can pick it, for
+example when posting. Pass one of:
+
+| Argument | |
+| --- | --- |
+| `path` | An absolute path on the computer the phone is connected to |
+| `url` | A URL that computer downloads first, for media made in the cloud |
+
+Android puts the file in `Pictures/agentthumbs` and triggers a media scan.
+
+## Errors
+
+A failed call returns `isError: true` with text that starts with the error
+code when there is one, for example `APPROVAL_DENIED: A human declined: …`.
+See [Errors](/reference/errors).
+
+## Server instructions
+
+The server sends instructions to every client that explain the loop, element
+ids and the approval rules, and tell the model to stop and ask the user when
+an approval is declined. Install the [skills](/guides/skills) for more.

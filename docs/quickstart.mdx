@@ -1,0 +1,104 @@
+---
+title: Quickstart
+description: Connect a phone, add the MCP server to your agent, and give it a task.
+---
+
+You need Node.js 20 or newer. Every command below runs through `npx`, so
+there is nothing to install first. For a permanent `agentthumbs` command, run
+`npm install -g @appeeky/agentthumbs` and drop the `npx -y` prefix.
+
+<Steps>
+  <Step title="Connect a phone">
+    <Tabs>
+      <Tab title="Android">
+        Turn on USB debugging (Settings → Developer options → USB debugging),
+        plug the phone in and accept the prompt on the phone. An emulator works
+        too. Check that adb sees it:
+
+        ```bash
+        adb devices
+        ```
+
+        See [Android](/platforms/android) for typing non-ASCII text.
+      </Tab>
+      <Tab title="iPhone">
+        Plug the iPhone in, unlock it and turn on Developer Mode (Settings →
+        Privacy & Security → Developer Mode). With Xcode signed in to a team,
+        run:
+
+        ```bash
+        npx -y @appeeky/agentthumbs ios setup
+        ```
+
+        Leave it running. The first run builds WebDriverAgent and takes a few
+        minutes. See [iOS over WebDriverAgent](/platforms/ios-wda).
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Check that agentthumbs sees it">
+    ```bash
+    npx -y @appeeky/agentthumbs devices
+    ```
+
+    When nothing is listed, the command prints why, for example a missing
+    permission.
+  </Step>
+  <Step title="Add the MCP server">
+    <CodeGroup>
+    ```bash Claude Code
+    claude mcp add phone -- npx -y @appeeky/agentthumbs mcp
+    ```
+
+    ```json Cursor (.cursor/mcp.json)
+    {
+      "mcpServers": {
+        "phone": { "command": "npx", "args": ["-y", "@appeeky/agentthumbs", "mcp"] }
+      }
+    }
+    ```
+
+    ```toml Codex (~/.codex/config.toml)
+    [mcp_servers.phone]
+    command = "npx"
+    args = ["-y", "@appeeky/agentthumbs", "mcp"]
+    ```
+    </CodeGroup>
+  </Step>
+  <Step title="Ask for something">
+    > Open Settings on my phone and turn on dark mode.
+
+    The agent calls `observe`, taps the numbered elements it needs, and reads
+    the screenshot each action returns.
+  </Step>
+</Steps>
+
+<Note>
+A tap on anything labelled like Post, Send, Buy or Delete waits for you to
+approve it. Your MCP client shows the prompt, or a macOS dialog appears when
+the client cannot. See [Safety](/guides/safety).
+</Note>
+
+## Try it without an agent
+
+The CLI runs the same actions by hand, which helps when something does not
+work:
+
+```bash
+npx -y @appeeky/agentthumbs observe     # prints numbered elements, saves ~/.agentthumbs/last.jpg
+npx -y @appeeky/agentthumbs tap 12
+npx -y @appeeky/agentthumbs type "Hello from agentthumbs"
+npx -y @appeeky/agentthumbs key home
+```
+
+See the [CLI reference](/reference/cli).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Install the skills" icon="graduation-cap" href="/guides/skills">
+    Teach your agent how to get around a phone.
+  </Card>
+  <Card title="Use it from code" icon="code" href="/guides/library">
+    Drive a phone from TypeScript.
+  </Card>
+</CardGroup>

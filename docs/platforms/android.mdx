@@ -1,0 +1,58 @@
+---
+title: Android
+description: Phones and emulators over adb.
+---
+
+Any Android phone or emulator that `adb devices` lists works. Nothing is
+installed on the phone except, optionally, a keyboard for Unicode text.
+
+## Set up
+
+1. Install the Android platform tools so `adb` is on your `PATH`.
+2. On the phone, turn on Developer options (tap Build number seven times),
+   then USB debugging.
+3. Plug it in and accept the "Allow USB debugging" prompt.
+
+```bash
+adb devices
+agentthumbs devices
+```
+
+Emulators appear the same way, with ids like `adb:emulator-5554`.
+
+## Typing non-ASCII text
+
+`adb shell input text` only types ASCII. For accented letters, emoji or any
+other Unicode text, install the latest [ADBKeyBoard](https://github.com/senzhk/ADBKeyBoard/releases)
+release APK:
+
+```bash
+adb install ADBKeyboard.apk
+```
+
+agentthumbs switches to it only while typing and restores your keyboard
+afterwards.
+
+## How the driver works
+
+| Need | How |
+| --- | --- |
+| Screen | `exec-out screencap -p` |
+| Input | `input tap`, `swipe`, `keyevent`, `text` |
+| Unicode text | ADBKeyBoard broadcast, switching the IME only while typing |
+| Elements | `uiautomator dump`, parsed into tappable nodes labelled with their own or their children's text |
+| Apps | `pm list packages -3`, launched through `monkey` |
+| Media | `adb push` into `Pictures/agentthumbs`, then a media scan |
+
+All keys work: `home`, `back`, `enter`, `delete`, `app_switch`,
+`volume_up`, `volume_down` and `lock`.
+
+## Notes
+
+- The first `observe` after a big screen change can take a couple of seconds
+  while the UI tree settles.
+- Screens that draw everything themselves (games, some video players, Flutter
+  apps without semantics) have few or no elements. The agent targets them by
+  pixel.
+- `open_app` takes a package name such as `com.android.settings`. `list_apps`
+  lists installed third-party apps.

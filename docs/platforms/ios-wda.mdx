@@ -1,0 +1,94 @@
+---
+title: iOS over WebDriverAgent
+description: Real accessibility trees and touch input on iPhones in Developer Mode.
+---
+
+WebDriverAgent (WDA) is Appium's XCUITest-based server. It runs on the
+iPhone as a UI test runner and gives agentthumbs screenshots, a real
+accessibility tree and touch input.
+
+## Requirements
+
+- Xcode, signed in to a team that can sign development apps (a free Personal
+  Team works)
+- The iPhone connected over USB, trusted, with Developer Mode on
+- `iproxy` for port forwarding: `brew install libimobiledevice`
+
+## Set up
+
+agentthumbs finds the device, picks a signing team from your keychain, builds
+and launches WebDriverAgent, and forwards the port:
+
+```bash
+agentthumbs ios setup                    # every connected iPhone, newest signing team
+agentthumbs ios setup --team "Team Name" # or a specific team id or name
+agentthumbs ios setup --udid <udid>      # only one iPhone
+```
+
+Leave it running; agentthumbs uses the phones while it does. To check what it
+sees first:
+
+```bash
+agentthumbs ios teams     # signing teams in the keychain
+agentthumbs ios devices   # iPhones, and why one is not ready
+```
+
+Set `AGENTTHUMBS_WDA_AUTOSTART=1` to have `agentthumbs mcp` and
+`agentthumbs serve` do this on demand instead.
+
+The first run clones WebDriverAgent to `~/.agentthumbs/WebDriverAgent` and
+builds it, which takes a few minutes and installs the runner on the iPhone.
+Later runs reuse the build and start in about a minute.
+
+## Several iPhones
+
+`ios setup` starts WebDriverAgent on every iPhone that is plugged in, trusted
+and in Developer Mode, one after the other. Each gets its own local port
+(8100, 8101, …) and shows up under its own name:
+
+```text
+Ready: Eren (wda:127.0.0.1:8100).
+Ready: Test iPhone (wda:127.0.0.1:8101).
+```
+
+Each iPhone has its own build in `~/.agentthumbs/wda-build/<udid>`, because a
+development build is signed for the devices it was built for; the first setup
+of every new iPhone takes a few minutes. iPhones plugged in later are picked
+up within 30 seconds, and a phone whose runner stops answering is started
+again.
+
+How many iPhones one Mac can drive depends on USB bandwidth and memory more
+than on agentthumbs; a powered USB hub helps. For larger fleets, see
+[Device farms](/guides/device-farm).
+
+<Note>
+On a free Personal Team the signature expires after about seven days. Delete
+`~/.agentthumbs/wda-build` to force a rebuild and a new signature for every
+iPhone, or `~/.agentthumbs/wda-build/<udid>` for one.
+</Note>
+
+### The manual way
+
+From a clone of the repository:
+
+```bash
+npm run ios:wda -- <udid> <team-id>
+```
+
+Keep it running; it forwards `localhost:8100` to WDA on the phone.
+agentthumbs finds it automatically. Set `AGENTTHUMBS_WDA_UDID=<udid>` so
+`list_apps` can read installed apps through `devicectl`, and
+`AGENTTHUMBS_WDA_URLS` for several phones or other ports.
+
+## Notes
+
+- `open_app` takes a bundle id, such as `com.burbn.instagram` or
+  `com.zhiliaoapp.musically`.
+- Element trees skip anything hidden behind sheets, keyboards and overlays.
+  That check costs about three seconds per observation on a real device;
+  `AGENTTHUMBS_WDA_FAST=1` turns it off at the price of phantom elements.
+- iOS has no back key. Use the app's own back button, or swipe from the left
+  edge.
+- Keys: `home`, `enter`, `delete`, `lock`, `volume_up` and `volume_down`.
+- To remove the runner, delete the WebDriverAgentRunner app from the iPhone
+  like any other app.

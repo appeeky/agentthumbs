@@ -1,0 +1,28 @@
+---
+title: Errors
+description: Error codes and the common messages, with what to do about them.
+---
+
+Policy errors carry a `code` that survives the MCP server, the CLI and the
+relay. An MCP tool result starts with it (`RATE_LIMITED: …`); in TypeScript it
+is `error.code` on a `PolicyError` or an `InvocationError`.
+
+## Codes
+
+| Code | Meaning | What to do |
+| --- | --- | --- |
+| `APPROVAL_DENIED` | A human declined a publish-like tap. | Stop and ask the user what to do instead. Do not look for another way to do the same thing. |
+| `APPROVAL_UNAVAILABLE` | The action needs approval and nobody could be asked: no approver, a client without elicitation off macOS, or a relay with nobody behind the request. | Ask the user to do the step on the phone, or configure an approver. |
+| `RATE_LIMITED` | The device reached its per-minute or per-hour action limit. | Wait. Raise `maxActionsPerMinute` or `maxActionsPerHour` only if the account can take it. |
+
+## Messages without a code
+
+| Message | Cause |
+| --- | --- |
+| `The screen changed since the last observation. Observe again before targeting elements by id.` | An element id from before the last action. Use the ids in the observation the last action returned. |
+| `Observe the screen before targeting an element by id.` | No observation yet on this device. |
+| `No element N. The last observation has M.` | An id that was never on the screen. |
+| `No devices connected.` | Nothing found. `agentthumbs devices` lists what each driver is missing. |
+| `Several devices are connected, pass a device id: …` | Pass `device` (MCP), `--device` (CLI) or an id to `device()`. |
+| `<driver> cannot open apps directly.` / `cannot list apps.` / `cannot push media.` | The driver lacks that [capability](/reference/api#drivercapabilities). |
+| `Could not open <app>. Is it installed? Use list_apps to check.` | Android could not launch the package. |

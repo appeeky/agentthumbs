@@ -1,0 +1,99 @@
+---
+title: Remote phones
+description: Run the agent in the cloud and keep the phones on your desk.
+---
+
+Phones have to be plugged into a computer, but the agent does not have to run
+there. A **connector** on the phone's computer opens an outbound WebSocket to
+a **relay**; agents anywhere talk to the relay. No inbound ports, no VPN.
+
+```text
+Agent ──MCP over HTTP──► relay ◄══WebSocket══ agentthumbs serve ──USB──► phones
+         (Bearer token)   /mcp      /connect      (Bearer token)
+```
+
+## Run your own relay
+
+Install agentthumbs on both machines first: `npm install -g @appeeky/agentthumbs`.
+
+<Steps>
+  <Step title="Start the relay on a server">
+    ```bash
+    AGENTTHUMBS_RELAY_TOKEN=... agentthumbs relay --port 8787
+    ```
+
+    Put it behind TLS with any reverse proxy. `PORT` works in place of
+    `--port`.
+  </Step>
+  <Step title="Connect the computer with the phones">
+    ```bash
+    AGENTTHUMBS_RELAY_TOKEN=... agentthumbs serve \
+      --relay wss://relay.example.com/connect --name desk-mac
+    ```
+
+    The connector reconnects on its own when the relay restarts.
+  </Step>
+  <Step title="Point the agent at the relay">
+    ```bash
+    claude mcp add --transport http phone https://relay.example.com/mcp \
+      --header "Authorization: Bearer ..."
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+The token is a shared secret: anyone with it can operate the phones. Use a
+long random value and keep it out of source control.
+</Warning>
+
+Device ids are namespaced by connector: `desk-mac/adb:emulator-5554`.
+
+## Approvals
+
+The connector enforces the same [policy](/guides/safety) as local use. When a
+tap needs approval, it asks the relay, and the relay asks the human behind
+the invocation:
+
+- the built-in relay uses MCP elicitation on the agent's client;
+- a hosted relay can use a dashboard, a push notification or chat instead.
+
+If nobody can be asked, the tap fails with `APPROVAL_UNAVAILABLE` rather than
+a fake denial. `agentthumbs serve --approval dialog` asks on the phone's
+computer instead, and `--approval off` lets publish-like taps through.
+
+## Media from the cloud
+
+`push_media` takes a `url` as well as a `path`, so media generated in the
+cloud can reach a phone: the connector downloads it first, then copies it
+into the gallery.
+
+## Embedding
+
+Import from `@appeeky/agentthumbs/remote` on servers. It holds the protocol, the MCP
+tools and the relay, without drivers or native modules.
+
+- `RelayHub` handles connectors on any Node HTTP server through
+  `handleUpgrade`. Its `authenticate` callback receives the bearer token and
+  returns a tenant id, or `null` to refuse; each tenant sees only its own
+  connectors.
+- `registerPhoneTools(server, service, { prefix })` adds the phone tools to
+  your own MCP server, backed by any `PhoneService`. For the hub, that is an
+  object whose `invoke` calls `hub.invoke(invocation, { tenant, onApproval })`,
+  where `onApproval` asks your user.
+- `Connector` can run inside a desktop app. It reports its state through
+  `status` events, and `token` can be a function for short-lived tokens.
+
+```ts
+import { createServer } from "node:http";
+import { RelayHub } from "@appeeky/agentthumbs/remote";
+
+const hub = new RelayHub({
+  authenticate: async (token) => (await lookUpAccount(token))?.id ?? null,
+});
+const server = createServer(app);
+server.on("upgrade", (req, socket, head) => {
+  if (req.url === "/connect") hub.handleUpgrade(req, socket, head);
+});
+```
+
+See the [protocol reference](/reference/protocol) for the messages.

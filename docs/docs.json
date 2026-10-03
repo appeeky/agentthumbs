@@ -1,0 +1,91 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "agentthumbs",
+  "description": "Give your AI agent a real phone.",
+  "colors": {
+    "primary": "#171717",
+    "light": "#fafafa",
+    "dark": "#171717"
+  },
+  "favicon": "/favicon.svg",
+  "appearance": {
+    "default": "dark"
+  },
+  "background": {
+    "color": {
+      "light": "#ffffff",
+      "dark": "#0a0a0a"
+    }
+  },
+  "fonts": {
+    "heading": { "family": "Geist", "weight": 500 },
+    "body": { "family": "Geist" }
+  },
+  "styling": {
+    "codeblocks": {
+      "theme": { "light": "github-light", "dark": "github-dark" }
+    },
+    "eyebrows": "breadcrumbs"
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude", "cursor", "vscode"]
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/appeeky/agentthumbs"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "icon": "book-open",
+        "groups": [
+          {
+            "group": "Get started",
+            "icon": "rocket",
+            "pages": ["index", "quickstart", "how-it-works", "license"]
+          },
+          {
+            "group": "Platforms",
+            "icon": "mobile-screen",
+            "pages": ["platforms/android", "platforms/ios-wda", "platforms/ios-mirroring"]
+          },
+          {
+            "group": "Guides",
+            "icon": "compass",
+            "pages": ["guides/safety", "guides/remote", "guides/device-farm", "guides/skills", "guides/library"]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "icon": "code",
+        "groups": [
+          {
+            "group": "Interfaces",
+            "icon": "terminal",
+            "pages": ["reference/mcp-tools", "reference/cli", "reference/api"]
+          },
+          {
+            "group": "Project",
+            "icon": "folder-gear",
+            "pages": ["reference/environment", "reference/errors", "reference/protocol"]
+          },
+          {
+            "group": "Extend",
+            "icon": "puzzle-piece",
+            "pages": ["reference/writing-a-driver"]
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/appeeky/agentthumbs"
+    }
+  }
+}

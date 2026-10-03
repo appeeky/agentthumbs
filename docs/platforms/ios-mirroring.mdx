@@ -1,0 +1,43 @@
+---
+title: iOS through iPhone Mirroring
+description: Drive an iPhone through the macOS iPhone Mirroring window, with no developer mode.
+---
+
+macOS 15 can mirror a nearby iPhone into a window. agentthumbs captures that
+window and moves the Mac's pointer and keyboard over it, so nothing runs on
+the iPhone and Developer Mode is not needed.
+
+<Warning>
+Apple does not offer iPhone Mirroring in the European Union. Use
+[WebDriverAgent](/platforms/ios-wda) there.
+</Warning>
+
+## Requirements
+
+- macOS 15 or newer and an iPhone on iOS 18 or newer, signed in to the same
+  Apple Account
+- The iPhone Mirroring app open and connected to the iPhone
+- Screen Recording and Accessibility permission for the app that runs
+  agentthumbs (your terminal, or your MCP client), in System Settings →
+  Privacy & Security
+
+`agentthumbs devices` lists what is missing when the iPhone does not
+appear.
+
+## Limits
+
+- One iPhone per Mac.
+- The pointer moves for each action and is put back afterwards. Avoid using
+  the mouse while the agent works.
+- There is no accessibility tree. Elements come from text that Apple's
+  Vision OCR reads on the screen, so icons without a label have no number
+  and the agent targets them by pixel.
+- `open_app` takes the app's name as shown on the Home Screen, not a bundle
+  id. `list_apps` and `push_media` are not available.
+- Keys: `home`, `app_switch`, `enter` and `delete`.
+
+## The helper
+
+A small Swift helper does the capture and the input. agentthumbs ships it as
+a universal binary in `@appeeky/agentthumbs`. Set `AGENTTHUMBS_MIRRORING_HELPER` to
+use a helper at another path.

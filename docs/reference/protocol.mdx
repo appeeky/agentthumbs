@@ -1,0 +1,74 @@
+---
+title: Remote protocol
+description: Version 1 of the connector and relay protocol.
+---
+
+A connector runs next to the phones and opens an outbound WebSocket to a
+relay, with `Authorization: Bearer <token>`. The relay sends invocations; the
+connector runs them on its phones and answers. Approvals the connector needs
+travel back to the relay, which asks a human however it likes.
+
+Every message is one JSON object with a `type`. Unknown types are ignored, so
+either side can add messages without breaking the other.
+[`protocol.ts`](https://github.com/appeeky/agentthumbs/blob/main/packages/agentthumbs/src/protocol.ts)
+has no imports, so other codebases can copy it verbatim.
+
+## Messages
+
+| Direction | `type` | Fields | Purpose |
+| --- | --- | --- | --- |
+| connector → relay | `hello` | `protocol`, `connector: { name, version, platform }`, `devices`, `problems` | First message after connecting |
+| connector → relay | `devices` | `devices`, `problems` | The device list changed |
+| relay → connector | `welcome` | `connectorId` | Accepted |
+| relay → connector | `invoke` | `id`, `invocation` | Run an invocation |
+| connector → relay | `result` | `id`, `ok: true, result` or `ok: false, error: { code?, message }` | The invocation's outcome |
+| connector → relay | `approval_request` | `id`, `invocationId`, `request` | A human must approve something for that invocation |
+| relay → connector | `approval_response` | `id`, `approved`, `unavailable?` | `unavailable` means nobody could be asked, as opposed to a human saying no |
+| both | `ping` / `pong` | | Keepalive. The relay also uses WebSocket pings |
+
+## Invocations
+
+```ts
+type Invocation =
+  | { method: "devices" }
+  | { method: "observe"; device?: string }
+  | { method: "tap"; device?: string; target: WireTarget; observe?: boolean }
+  | { method: "long_press"; device?: string; target: WireTarget; durationMs?: number; observe?: boolean }
+  | { method: "swipe"; device?: string; from: WireTarget; to: WireTarget; durationMs?: number; observe?: boolean }
+  | { method: "scroll"; device?: string; direction: "up" | "down" | "left" | "right"; amount?: number; observe?: boolean }
+  | { method: "type"; device?: string; text: string; observe?: boolean }
+  | { method: "key"; device?: string; key: string; observe?: boolean }
+  | { method: "open_app"; device?: string; appId: string; observe?: boolean }
+  | { method: "list_apps"; device?: string }
+  | { method: "push_media"; device?: string; path?: string; url?: string };
+
+type WireTarget = { element: number } | { x: number; y: number };
+```
+
+## Results
+
+```ts
+type InvocationResult =
+  | { kind: "devices"; devices: WireDevice[]; problems: string[] }
+  | { kind: "observation"; observation: WireObservation }
+  | { kind: "done"; action: string }
+  | { kind: "apps"; apps: Array<{ id: string; name: string }> }
+  | { kind: "media"; remotePath: string };
+
+interface WireObservation {
+  device: WireDevice;
+  image: { data: string; mimeType: string; width: number; height: number }; // base64
+  elements: WireElement[];
+  /** Model-ready text: the element list and how to target it. */
+  description: string;
+  takenAt: string;
+}
+```
+
+An approval request carries the device, the action, the label, the reason and
+the screenshot as base64 (`screenshot`, `screenshotMimeType`).
+
+## Device ids
+
+The relay prefixes each device id with its connector's name:
+`desk-mac/adb:emulator-5554`. Invocations use the prefixed id.

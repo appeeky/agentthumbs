@@ -1,0 +1,59 @@
+---
+title: Skills
+description: Teach your agent how to get around a phone.
+---
+
+The MCP tools say what the agent can do. Skills say how a careful person
+does it: read the screen before acting, handle pop-ups, check that a caption
+was typed correctly before posting. agentthumbs ships them as
+[Agent Skills](https://agentskills.io) in the repository's `skills/`
+directory.
+
+| Skill | Use it for |
+| --- | --- |
+| `agentthumbs` | The observe, act, observe loop, getting around, posting content, and the rules every task follows |
+| `ios-basics` | Home, the app switcher, search, keyboards, scrolling and going back on an iPhone |
+| `app-store` | Installing, opening and updating apps from the App Store |
+| `permissions-and-dialogs` | Permission, tracking, notification, sign-in and rating prompts |
+| `sign-in` | Login screens, SSO, and 2FA codes that arrive on the phone |
+| `app-teardown` | Walking a competitor's store page, onboarding and paywall, and reporting what changed since last time |
+| `release-check` | Checking your own app after a release: store page, update, first launch, paywall and a core flow, pass or fail |
+| `instagram` | Posting a photo or video, the AI label, and switching between the Instagram accounts on the phone |
+| `tiktok` | Posting or saving a draft, the AI-generated content label, and switching accounts |
+| `threads` | Posting text, media or a multi-post thread, and switching profiles |
+| `emulator-farm` | For a coding agent on a Linux server: checking for KVM, running Android emulators in Docker, connecting them to adb and sharing them through agentthumbs |
+
+## Install
+
+With the [skills CLI](https://github.com/vercel-labs/skills), which works for
+Claude Code, Cursor, Codex and other agents:
+
+```bash
+npx skills add appeeky/agentthumbs
+```
+
+Or copy the folders you want from the repository's
+[`skills/`](https://github.com/appeeky/agentthumbs/tree/main/skills) directory
+into your agent's skills directory (`~/.claude/skills/` for Claude Code).
+
+Copy them into a project's `.claude/skills/` instead to share them with
+everyone who works on it. Other agents that read
+[Agent Skills](https://agentskills.io) take the same folders.
+
+## 2FA codes
+
+The `sign-in` skill reads a verification code the way a person would: it
+opens the notification or the Messages app, reads the code on screen with
+`observe`, and types it. agentthumbs has no tool that reads the phone's
+message database.
+
+## Writing your own
+
+A skill for a specific app (your own, or one your agent uses every day) saves
+the model from rediscovering it on every run. Describe:
+
+- how to reach the screen the task starts from,
+- which controls have no label and where they are,
+- what a finished task looks like on screen, so the agent can check it.
+
+Keep labels in the language the phone is set to.

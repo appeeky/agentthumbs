@@ -1,0 +1,94 @@
+---
+title: Writing a driver
+description: Add a new transport by implementing one small interface.
+---
+
+A driver moves pixels and events. Waiting, element resolution, scaling,
+approvals, rate limits and logging live in the runtime, so a new transport
+stays small and behaves like every other one.
+
+```text
+┌ Interfaces ──────────────────────────────────────────────────────┐
+│ MCP server (stdio or relay) · CLI · TypeScript API               │
+├ Runtime (@appeeky/agentthumbs/core) ─────────────────────────────┤
+│ device discovery · one action at a time per device               │
+│ observations: screenshot → elements → scaled, numbered image     │
+│ target resolution: element id or image x/y → native pixels       │
+│ wait until the screen stops moving · approvals · limits · log    │
+├ Drivers ─────────────────────────────────────────────────────────┤
+│ adb · wda · mirroring · yours                                    │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+## The interface
+
+```ts
+import type { DeviceDriver, DriverProvider } from "@appeeky/agentthumbs/core";
+
+interface DeviceDriver {
+  readonly info: DeviceInfo;
+  readonly capabilities: DriverCapabilities;
+
+  /** PNG at native resolution. */
+  screenshot(): Promise<Buffer>;
+  tap(point: Point): Promise<void>;
+  longPress(point: Point, durationMs: number): Promise<void>;
+  swipe(from: Point, to: Point, durationMs: number): Promise<void>;
+  /** Types into the focused field. */
+  type(text: string): Promise<void>;
+  key(key: Key): Promise<void>;
+
+  uiTree?(): Promise<UiElement[]>;
+  listApps?(): Promise<AppInfo[]>;
+  openApp?(appId: string): Promise<void>;
+  /** Copies a local image or video into the phone's gallery. Returns the on-device path. */
+  pushMedia?(localPath: string): Promise<string>;
+}
+
+/** Finds devices reachable through one transport. */
+interface DriverProvider {
+  readonly name: string;
+  discover(): Promise<DeviceDriver[]>;
+  /** Human-readable reasons this provider finds no devices, such as missing permissions. */
+  diagnose?(): Promise<string[]>;
+}
+```
+
+Every `Point` is in native device pixels, origin at the top left. Give each
+device an id that is unique across drivers, prefixed with the driver's name
+(`adb:emulator-5554`).
+
+Report what you support in `capabilities`, and implement the optional methods
+that match. The runtime turns a missing one into a clear error for the agent.
+
+## Elements
+
+When the transport has an accessibility or UI tree, implement `uiTree()` and
+set `capabilities.uiTree`. Return elements with a label, an optional role, a
+rect in native pixels, and `source: "tree"`.
+
+Do not filter much. The runtime already drops invisible, screen-sized and
+duplicate elements and caps the list at 150. Do label containers by their
+children's text when they have none of their own, since the agent can only
+tap what it can name.
+
+Without a tree, the runtime asks the configured `ElementSource`, which reads
+the screenshot (for example Apple Vision OCR) and reports `source: "ocr"`.
+
+## Errors
+
+`uiTree()` may fail while the screen animates; the runtime falls back to the
+element source. Everywhere else, throw an `Error` with a message the agent can
+act on, such as `Could not open com.example. Is it installed? Use list_apps
+to check.`
+
+## Use it
+
+```ts
+import { AdbProvider, AgentThumbs } from "@appeeky/agentthumbs";
+import { MyProvider } from "./my-driver.js";
+
+const thumbs = new AgentThumbs({ providers: [new AdbProvider(), new MyProvider()] });
+```
+
+The adb driver (`packages/agentthumbs/src/drivers/adb`) is the shortest complete example.

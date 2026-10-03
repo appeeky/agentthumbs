@@ -1,0 +1,71 @@
+---
+title: How it works
+description: The observe, act, observe loop, numbered elements, coordinates and waiting.
+---
+
+An agent works a phone the way a person does: look, act, look again.
+
+1. `observe` returns a screenshot with numbered boxes over everything
+   tappable, plus a text list of those elements.
+2. The agent acts on an element by number (`tap { element: 12 }`) or by
+   pixel (`tap { x, y }`).
+3. Every action returns a fresh observation once the screen stops moving,
+   so the agent sees the result right away.
+
+## Numbered elements
+
+Vision models tap far more accurately when they can say "element 12" than
+when they estimate coordinates. Every observation therefore carries elements:
+
+- from the driver's UI tree when it has one ([adb](/platforms/android),
+  [WebDriverAgent](/platforms/ios-wda)),
+- otherwise from text recognized in the pixels
+  ([iPhone Mirroring](/platforms/ios-mirroring) uses Apple's Vision OCR,
+  which runs locally).
+
+The runtime drops invisible, screen-sized and duplicate elements, keeps at
+most 150, numbers the rest top to bottom, and draws the numbers on the
+screenshot. The text list and the image use the same ids.
+
+Element ids belong to one observation. After any action they expire, and the
+runtime refuses to use them until the agent observes again:
+
+```text
+The screen changed since the last observation. Observe again before targeting elements by id.
+```
+
+Actions return a fresh observation by default, so this costs nothing in the
+normal loop. Pass `observe: false` to skip it when the agent does several
+blind actions in a row.
+
+## Coordinates
+
+Screenshots are scaled to a 1280 px long edge and encoded as JPEG, which is
+where vision models are most accurate and keeps each image around 60 to 80
+KB. Agents send coordinates in that image's pixels; the runtime multiplies by
+the observation's scale and clamps to the screen. On iOS, where
+WebDriverAgent works in points, the driver converts again.
+
+## Waiting
+
+After an action the runtime waits 250 ms, then compares tiny grayscale
+thumbnails of consecutive screenshots until two match or three seconds pass.
+The last frame becomes the observation, so no extra screenshot is taken.
+
+## One action at a time
+
+Each device has a queue. Two agents, or an agent and a person using the
+[live view in an app that embeds agentthumbs](/guides/library#live-view), never
+send events to the same phone at once.
+
+## Layers
+
+```text
+Agent (MCP / CLI / TypeScript)
+  └─ Runtime   element ids, coordinate scaling, wait-for-stable, approvals, rate limits, log
+       └─ Drivers   adb (Android) · wda (iOS) · mirroring (iOS)
+```
+
+Drivers only move pixels and events. Everything else lives in the runtime, so
+behavior is the same on every platform and a new transport is one small
+interface. See [Writing a driver](/reference/writing-a-driver).

@@ -1,0 +1,81 @@
+---
+title: Introduction
+description: Give your AI agent a real phone.
+---
+
+<img src="/images/banner.png" alt="Agents among the flowers, tied by threads of light to a phone that sends out tap ripples." />
+
+agentthumbs lets Claude, Codex, Cursor or your own code see and operate a
+real phone: open apps, tap, scroll, type and post like a person does. It runs
+on your computer and talks to the phones you plug in. It ships as an MCP
+server, a CLI and a TypeScript library.
+
+```bash
+claude mcp add phone -- npx -y @appeeky/agentthumbs mcp
+```
+
+> Open Settings on my phone and turn on dark mode.
+
+## Why a phone
+
+Agents can already use your terminal, your browser and your APIs. The phone is the one computer they still can't touch, and it is where your users, your competitors and your app actually live.
+
+### Grow your app
+
+- **Track your competitors.** Install their apps, walk the onboarding and the paywall, and report what changed since last week: new prices, a moved paywall, a new trial.
+- **Check every market.** Switch the phone's language and region, and see your listing, your screenshots and your competitors' prices the way each country sees them.
+- **Watch the ads in the feed.** Scroll TikTok, Instagram or YouTube and collect the sponsored posts your category is running right now.
+
+### Ship with confidence
+
+- **Test what you build on a real device.** A coding agent installs your build, taps through the change it just made, and tells you whether it works, on a real phone instead of a simulator.
+- **Check every release.** After a version goes live, update it from the store, open it, go through onboarding and the paywall, and report what broke.
+- **Reproduce bug reports.** Hand the agent a support ticket; it follows the steps on a phone and comes back with screenshots of where it fails.
+- **Verify notifications and deep links.** Trigger a push, tap it, and confirm it lands on the right screen.
+- **Audit accessibility.** The agent reads the same accessibility tree screen readers use, so every unlabeled button shows up.
+
+### Give agents hands
+
+- **From advice to action.** A growth or cofounder agent that today only writes recommendations can carry them out on the phone, and still asks a person before anything goes public.
+- **Publish from your own accounts.** Post the video your team made to Instagram, TikTok or Threads from the accounts already signed in, with a person approving every post.
+- **Every app becomes a tool.** Most mobile apps have no API. If a person can do it on the screen, your agent can do it too, with nothing to install on the phone.
+
+<Warning>
+agentthumbs is at 0.x. APIs, tool names and environment variables can still
+change between minor versions.
+</Warning>
+
+## What works today
+
+| Platform | Driver | Elements from |
+| --- | --- | --- |
+| Android phones and emulators | [adb](/platforms/android) | The UI tree (`uiautomator`) |
+| iPhone in Developer Mode | [WebDriverAgent](/platforms/ios-wda) | The accessibility tree |
+| iPhone near a Mac on macOS 15+ | [iPhone Mirroring](/platforms/ios-mirroring) | Apple Vision OCR |
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Connect a phone and give your agent its first task.
+  </Card>
+  <Card title="How it works" icon="eye" href="/how-it-works">
+    The observe, act, observe loop and numbered elements.
+  </Card>
+  <Card title="Safety" icon="shield-halved" href="/guides/safety">
+    Approvals, rate limits and the action log.
+  </Card>
+  <Card title="Remote phones" icon="tower-broadcast" href="/guides/remote">
+    Run the agent in the cloud and keep the phones on your desk.
+  </Card>
+</CardGroup>
+
+## One package
+
+Everything ships in `@appeeky/agentthumbs`:
+
+| Import | What it gives you |
+| --- | --- |
+| `@appeeky/agentthumbs` | Everything: runtime, drivers, MCP server, CLI (`agentthumbs`), relay and connector |
+| `@appeeky/agentthumbs/remote` | Protocol, MCP tools and relay, without drivers or native modules, for servers |
+| `@appeeky/agentthumbs/core` | Just the runtime, for [writing a driver](/reference/writing-a-driver) |
+
+agentthumbs is source-available under the [Functional Source License](/license) (FSL-1.1-MIT): free for your own and your company's use, not for competing products, and MIT two years after each release.

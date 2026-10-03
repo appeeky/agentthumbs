@@ -1,0 +1,82 @@
+---
+title: CLI
+description: Every agentthumbs command and option.
+---
+
+```bash
+agentthumbs <command> [options]
+```
+
+Install the command with `npm install -g @appeeky/agentthumbs`, or run any command
+through `npx -y @appeeky/agentthumbs <command>` without installing. The docs write the
+short form.
+
+## Servers
+
+| Command | What it does |
+| --- | --- |
+| `mcp [--approval auto\|elicit\|dialog\|off]` | The MCP server over stdio, for phones on this computer |
+| `serve --relay <wss url> [--name n] [--approval relay\|dialog\|off]` | Share this computer's phones with a relay. See [Remote phones](/guides/remote) |
+| `relay [--port 8787]` | Run a relay: connectors on `/connect`, MCP over HTTP on `/mcp` |
+
+`serve` and `relay` need a token: `--token`, or `AGENTTHUMBS_RELAY_TOKEN`.
+`serve` also reads the relay URL from `AGENTTHUMBS_RELAY_URL`.
+
+## Phone commands
+
+These act on one phone and print the observation that follows, with the
+screenshot saved to `~/.agentthumbs/last.jpg`. The CLI remembers that
+observation for 10 minutes, so element ids from one command work in the
+next.
+
+| Command | |
+| --- | --- |
+| `devices` | Connected phones, or why none is found |
+| `observe [--out file]` | Screenshot and numbered elements |
+| `tap <id \| x,y>` | Tap an element or a point |
+| `long-press <id \| x,y> [--duration ms]` | |
+| `swipe <id \| x,y> <id \| x,y> [--duration ms]` | |
+| `scroll <up\|down\|left\|right> [--amount 0.5]` | |
+| `type <text>` | Type into the focused field |
+| `key <name>` | `home`, `back`, `enter`, `delete`, `app_switch`, `volume_up`, `volume_down`, `lock` |
+| `open <app id>` | Launch an app |
+| `apps` | List installed app ids |
+| `push <file>` | Copy an image or video into the gallery |
+
+```bash
+agentthumbs observe
+agentthumbs tap 12
+agentthumbs tap 300,840
+agentthumbs type "Hello from agentthumbs"
+agentthumbs scroll down --amount 0.8
+```
+
+## iOS setup
+
+| Command | |
+| --- | --- |
+| `ios teams` | Apple signing teams in the keychain |
+| `ios devices` | Connected iPhones and whether each is ready |
+| `ios setup [--team <id\|name>] [--udid <udid>]` | Build and start WebDriverAgent on every connected iPhone, or only `--udid`. Leave it running |
+
+See [iOS over WebDriverAgent](/platforms/ios-wda).
+
+## Options
+
+| Option | |
+| --- | --- |
+| `--device <id>` | Pick a phone when several are connected |
+| `--yes` | Skip approval prompts: publish-like taps go through |
+| `--approval <mode>` | Approval mode for `mcp` and `serve` |
+| `--token <t>` | Relay token for `serve` and `relay` |
+| `--team <t>` | Signing team for `ios setup` (or `AGENTTHUMBS_IOS_TEAM`) |
+| `--udid <u>` | Set up only this iPhone in `ios setup` (or `AGENTTHUMBS_WDA_UDID`) |
+| `-h`, `--help` | Usage |
+
+Without `--yes`, a phone command asks for approval in the terminal, or with a
+macOS dialog when there is no terminal.
+
+## Exit codes
+
+`0` on success, `1` on any error. Errors print as `CODE: message` when they
+have a [code](/reference/errors).
