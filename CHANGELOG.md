@@ -2,6 +2,13 @@
 
 All notable changes to agentthumbs. The project follows [Semantic Versioning](https://semver.org); while it is at 0.x, a minor version can change the API.
 
+## 0.3.1 (2026-10-03)
+
+### Fixes
+
+- report the package version instead of 0.0.1 ([2fb0378](https://github.com/appeeky/agentthumbs/commit/2fb0378c3796952faf35fb5224b95f3edfae6117))
+- **runtime:** wait for an action to show before settling ([94c2aa2](https://github.com/appeeky/agentthumbs/commit/94c2aa2385b3451364681883c2a3f3d216ea7e63))
+
 ## 0.3.0 (2026-10-03)
 
 ### Features

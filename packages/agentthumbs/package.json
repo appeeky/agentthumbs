@@ -1,6 +1,6 @@
 {
   "name": "@appeeky/agentthumbs",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Give your AI agent a real phone: MCP server, CLI and TypeScript library for Android phones and iPhones.",
   "license": "FSL-1.1-MIT",
   "author": "Appeeky (https://appeeky.com)",
