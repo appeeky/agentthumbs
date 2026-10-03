@@ -12,13 +12,15 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { errorCode, InvocationError } from "./errors.js";
 import type { Invocation, InvocationResult, WireObservation, WireTarget } from "./protocol.js";
+import { createRequire } from "node:module";
 
 /** Runs invocations somewhere: on local phones, or through a relay on someone else's. */
 export interface PhoneService {
   invoke(invocation: Invocation): Promise<InvocationResult>;
 }
 
-export const VERSION = "0.0.1";
+/** This package's version, read from its package.json (one level above src/ and dist/). */
+export const VERSION: string = (createRequire(import.meta.url)("../package.json") as { version: string }).version;
 
 export const INSTRUCTIONS = `agentthumbs controls real phones.
 
