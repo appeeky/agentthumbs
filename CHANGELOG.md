@@ -2,6 +2,13 @@
 
 All notable changes to agentthumbs. The project follows [Semantic Versioning](https://semver.org); while it is at 0.x, a minor version can change the API.
 
+## 0.3.0 (2026-10-03)
+
+### Features
+
+- report each device's hardware id as DeviceInfo.serial ([94b08f2](https://github.com/appeeky/agentthumbs/commit/94b08f2b2df7c5c1d26150ceade8be8137e486f4))
+- share one runtime between a connector and the host app ([b47ddb3](https://github.com/appeeky/agentthumbs/commit/b47ddb360bb95e538d6db3b00392cfd391809427))
+
 ## 0.2.1
 
 First public release.
