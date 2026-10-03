@@ -14,6 +14,8 @@ import { RelayHub } from "@appeeky/agentthumbs/remote";         // servers: no d
 function createAgentThumbs(options?: {
   approver?: Approver;
   policy?: Partial<PolicyConfig>;
+  /** WebDriverAgent options, for example { autoStart: true, onLog } in an app. */
+  wda?: WdaProviderOptions;
 }): AgentThumbs;
 ```
 

@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { hostname } from "node:os";
-import { PolicyError, type Approver, type PolicyConfig } from "./core/index.js";
+import { PolicyError, type AgentThumbs, type Approver, type PolicyConfig } from "./core/index.js";
 import WebSocket from "ws";
 import { macDialogApprover } from "./approval.js";
 import {
@@ -35,6 +35,13 @@ export interface ConnectorOptions {
    */
   approval?: ConnectorApproval;
   policy?: Partial<PolicyConfig>;
+  /**
+   * Run invocations on this AgentThumbs instead of creating one, so an app that
+   * also drives the phones itself shares one runtime: one queue and one set of
+   * rate limits per phone. `approval` and `policy` are then the instance's own;
+   * give it `connector.approver()` so relay invocations still ask the relay.
+   */
+  thumbs?: AgentThumbs;
   /** How long an approval may wait for a human. */
   approvalTimeoutMs?: number;
   /** How often to look for plugged or unplugged phones. */
@@ -69,7 +76,7 @@ export class Connector extends EventEmitter {
   private readonly approvals = new Map<string, PendingApproval>();
   private readonly context = new AsyncLocalStorage<{ invocationId: string }>();
   private readonly service: LocalPhoneService;
-  private readonly pw;
+  private readonly pw: AgentThumbs;
   private readonly name: string;
   private statusValue: ConnectorStatus = { state: "connecting" };
 
@@ -79,11 +86,26 @@ export class Connector extends EventEmitter {
     const mode = options.approval ?? "relay";
     const approver: Approver | undefined =
       mode === "off" ? undefined : mode === "dialog" ? macDialogApprover() : (request) => this.askRelay(request);
-    this.pw = createAgentThumbs({
-      ...(approver ? { approver } : {}),
-      policy: { ...options.policy, ...(mode === "off" ? { requireApproval: false } : {}) },
-    });
+    this.pw =
+      options.thumbs ??
+      createAgentThumbs({
+        ...(approver ? { approver } : {}),
+        policy: { ...options.policy, ...(mode === "off" ? { requireApproval: false } : {}) },
+      });
     this.service = new LocalPhoneService(this.pw);
+  }
+
+  /**
+   * An approver for a shared AgentThumbs (see `thumbs`): actions that come from
+   * the relay ask the relay's human; anything else goes to `fallback`, or is
+   * refused when there is none.
+   */
+  approver(fallback?: Approver): Approver {
+    return (request) => {
+      if (this.context.getStore()) return this.askRelay(request);
+      if (fallback) return fallback(request);
+      return Promise.reject(new PolicyError("APPROVAL_UNAVAILABLE", `${request.reason} No approver for local actions.`));
+    };
   }
 
   get status(): ConnectorStatus {

@@ -81,7 +81,20 @@ tools and the relay, without drivers or native modules.
   object whose `invoke` calls `hub.invoke(invocation, { tenant, onApproval })`,
   where `onApproval` asks your user.
 - `Connector` can run inside a desktop app. It reports its state through
-  `status` events, and `token` can be a function for short-lived tokens.
+  `status` events, and `token` can be a function for short-lived tokens. An
+  app that also drives the phones itself, for a live view or manual control,
+  passes its own instance as `thumbs`, so both share one queue and one set of
+  rate limits per phone. Give that instance `connector.approver(fallback)`:
+  actions that come from the relay ask the relay, local ones go to `fallback`.
+
+```ts
+let connector: Connector | undefined;
+const thumbs = createAgentThumbs({
+  approver: (request) => (connector ? connector.approver(macDialogApprover())(request) : macDialogApprover()(request)),
+  wda: { autoStart: true, onLog: (line) => console.log(line) },
+});
+connector = new Connector({ relayUrl, token, thumbs });
+```
 
 ```ts
 import { createServer } from "node:http";
