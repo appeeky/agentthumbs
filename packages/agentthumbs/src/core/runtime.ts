@@ -61,7 +61,14 @@ export interface ActionOptions {
 export interface SettleOptions {
   /** Wait at least this long after an action before sampling the screen. */
   initialDelayMs: number;
+  /** The most a whole settle may take. */
   timeoutMs: number;
+  /**
+   * How long to wait for the action to show on screen before settling.
+   * Screen transitions often start a few hundred milliseconds after the input;
+   * settling before then returns the old screen.
+   */
+  changeTimeoutMs: number;
   /** Signature distance below which two frames count as the same. */
   threshold: number;
 }
@@ -86,7 +93,7 @@ export interface AgentThumbsOptions {
 }
 
 const DEFAULT_RENDER: RenderOptions = { maxEdge: 1280, format: "jpeg", marks: true };
-const DEFAULT_SETTLE: SettleOptions = { initialDelayMs: 250, timeoutMs: 3000, threshold: 1.5 };
+const DEFAULT_SETTLE: SettleOptions = { initialDelayMs: 250, timeoutMs: 3000, changeTimeoutMs: 1500, threshold: 1.5 };
 const MAX_ELEMENTS = 150;
 /** Containers bigger than this share of the screen are layout, not targets. */
 const MAX_ELEMENT_SCREEN_SHARE = 0.7;
@@ -336,17 +343,21 @@ export class DeviceSession {
   ): Promise<ActionResult> {
     return this.exclusive(async () => {
       this.config.limiter.check();
+      const observe = options?.observe !== false;
+      // The screen right before the action, so settling can wait for the action to show.
+      const before = observe ? await screenSignature(await this.driver.screenshot()) : undefined;
       const detail = await run();
       this.config.limiter.record();
       if (this.state) this.state.stale = true;
       this.log(action, detail);
-      if (options?.observe === false) return { action };
-      return { action, observation: await this.observeNow(true) };
+      if (!observe) return { action };
+      return { action, observation: await this.observeNow(before) };
     });
   }
 
-  private async observeNow(afterAction = false): Promise<Observation> {
-    const png = afterAction ? await this.waitForStable() : await this.driver.screenshot();
+  /** Observes now, or after an action once its effect has settled when `before` is given. */
+  private async observeNow(before?: Buffer): Promise<Observation> {
+    const png = before ? await this.waitForStable(before) : await this.driver.screenshot();
     const elements = normalizeElements(await this.detectElements(png), this.driver.info.screen);
     const image = await renderObservation(png, elements, this.config.render);
     this.state = { scale: image.scale, elements, stale: false };
@@ -380,13 +391,24 @@ export class DeviceSession {
     return this.config.elementSource ? this.config.elementSource.detect(png) : [];
   }
 
-  /** Samples the screen until two frames match or the timeout passes. Returns the last frame. */
-  private async waitForStable(): Promise<Buffer> {
-    const { initialDelayMs, timeoutMs, threshold } = this.config.settle;
+  /**
+   * Waits for an action's effect, then for the screen to stop moving. First
+   * samples until the screen differs from `before` (or changeTimeoutMs passes,
+   * for actions that change nothing), then until two frames in a row match.
+   * Returns the last frame.
+   */
+  private async waitForStable(before: Buffer): Promise<Buffer> {
+    const { initialDelayMs, timeoutMs, changeTimeoutMs, threshold } = this.config.settle;
+    const start = Date.now();
+    const deadline = start + timeoutMs;
     await sleep(initialDelayMs);
-    const deadline = Date.now() + timeoutMs;
     let png = await this.driver.screenshot();
     let signature = await screenSignature(png);
+    while (signatureDistance(before, signature) < threshold && Date.now() - start < changeTimeoutMs) {
+      await sleep(100);
+      png = await this.driver.screenshot();
+      signature = await screenSignature(png);
+    }
     while (Date.now() < deadline) {
       const next = await this.driver.screenshot();
       const nextSignature = await screenSignature(next);

@@ -1,8 +1,9 @@
+import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { describeObservation, AgentThumbs, PolicyError, type AgentThumbsOptions } from "../../src/core/index.js";
 import { element, FakeDriver, provider } from "./fake-driver.js";
 
-const fastSettle = { initialDelayMs: 0, timeoutMs: 0 };
+const fastSettle = { initialDelayMs: 0, timeoutMs: 0, changeTimeoutMs: 0 };
 
 function setup(options: Partial<AgentThumbsOptions> = {}) {
   const driver = new FakeDriver([element("Search", 100, 200), element("Post", 800, 2200)]);
@@ -111,5 +112,43 @@ describe("DeviceSession", () => {
       session.type("c", { observe: false }),
     ]);
     expect(driver.calls.map((c) => c.args[0])).toEqual(["a", "b", "c"]);
+  });
+});
+
+/** A phone whose screen turns black 600 ms after a tap, like a screen transition that starts late. */
+class SlowTransitionDriver extends FakeDriver {
+  private changeAt = Number.POSITIVE_INFINITY;
+  override async tap(point: { x: number; y: number }) {
+    await super.tap(point);
+    this.changeAt = Date.now() + 600;
+  }
+  override async screenshot(): Promise<Buffer> {
+    const background = Date.now() >= this.changeAt ? "#000000" : "#ffffff";
+    return sharp({ create: { width: 1080, height: 2400, channels: 3, background } }).png().toBuffer();
+  }
+}
+
+describe("settling after an action", () => {
+  it("waits for a late screen change instead of returning the old screen", async () => {
+    const driver = new SlowTransitionDriver([element("Next", 100, 200)]);
+    const pw = new AgentThumbs({ providers: [provider(driver)] });
+    const session = await pw.device();
+    await session.observe();
+
+    const { observation } = await session.tap({ element: 1 });
+
+    const { channels } = await sharp(observation!.image.data).stats();
+    expect(channels[0]!.mean).toBeLessThan(50);
+  });
+
+  it("does not wait for a change when the action is not observed", async () => {
+    const driver = new SlowTransitionDriver([element("Next", 100, 200)]);
+    const pw = new AgentThumbs({ providers: [provider(driver)] });
+    const session = await pw.device();
+    await session.observe();
+
+    const started = Date.now();
+    await session.tap({ element: 1 }, { observe: false });
+    expect(Date.now() - started).toBeLessThan(300);
   });
 });
