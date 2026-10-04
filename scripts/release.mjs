@@ -84,6 +84,23 @@ for (const dir of PACKAGES) {
   const published = await isPublished(name, version);
   if (published) console.log(`${name}@${version} is already on npm.`);
   else run("npm", ["publish", "--workspace", `packages/${dir}`, "--access", "public", ...provenance]);
+  if (!dryRun) await waitUntilDownloadable(name, version);
+}
+
+/**
+ * npm takes a few minutes to serve a new version everywhere. Builds that
+ * install it right after the release (a dependent's CI, a deploy) would fail
+ * with a 404, so the release finishes only once the tarball downloads.
+ */
+async function waitUntilDownloadable(name, ver, timeoutMs = 15 * 60_000) {
+  const tarball = `https://registry.npmjs.org/${name}/-/${name.split("/").pop()}-${ver}.tgz`;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const res = await fetch(tarball, { method: "HEAD" }).catch(() => undefined);
+    if (res?.ok) return console.log(`${name}@${ver} is downloadable.`);
+    await new Promise((resolve) => setTimeout(resolve, 15_000));
+  }
+  console.warn(`::warning::${name}@${ver} is not downloadable after ${timeoutMs / 60_000} minutes.`);
 }
 
 // 5. Commit, tag, push, GitHub release
